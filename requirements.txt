@@ -1,0 +1,13 @@
+Django>=5.0,<5.1
+Celery # for distributed tasks
+redis # for distributed tasks
+django-celery-beat # django-celery plugins
+django-celery-results
+dj-database-url # for the connection to our database
+psycopg[binary] # v3.0 for our postgress database
+python-decouple # will load in our env variables
+django-timescaledb # help django to work with timescaleDb and time series data
+gunicorn # for running the django project in production
+kombu # for running celery in production
+whitenoise # for loading static files
+
