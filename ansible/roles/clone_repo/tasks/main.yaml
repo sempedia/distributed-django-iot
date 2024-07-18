@@ -1,0 +1,132 @@
+---
+# the OS level dependencies that will be installed 
+# just like we did in Dockerfile 
+- name: Ensure os deps
+  apt:
+    name: 
+      - libpq-dev # for postgres
+      - git
+      - python3-venv
+      - python3-pip
+    update_cache: yes
+    state: present
+  become: yes
+
+# the folder where we will bring our application code 
+- name: Ensure /opt/app directory exists
+  ansible.builtin.file:
+    path: "/opt/app"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  become: yes
+
+# we check the Playbooks direcxtory itself is there
+- name: Debug playbook directory
+  ansible.builtin.debug:
+    msg: "Playbook directory is: {{ playbook_dir }}"
+
+# cloning the public repository 
+- name: Clone public repository
+  ansible.builtin.git:
+    # declare a repo variable we can use everywhere
+    repo: "{{ github_repo }}"
+    # we use the 'main' branch
+    version: main
+    # we choose the destination of our project code 
+    dest: "/opt/app" # /opt/app/src/
+    # we force this: - github will be our source of thruth
+    # whatever is on our nodes is efemeral and does not really matter
+    # so we want to force those changes when they come through 
+    # and that we have all our github code synchronized
+    force: yes
+  # this is our superuser
+  become: yes
+  become_user: "{{ ansible_user }}"
+  # register the results wheter or not they are working
+  register: git_clone_result
+
+# copy an encrypted .env file - copy a .env.prod file from my l
+# local playbook directory
+# python decouple should automatically able to find this .env
+- name: Copy encrypted .env file
+  ansible.builtin.copy:
+  # copy the .env.prod file from this path
+    src: "{{ playbook_dir }}/../../.env.prod"
+    # deploy the file as .env file to the root of our app directory
+    dest: /opt/app/.env
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+    decrypt: yes
+  become: yes
+
+
+# we set the node id in .env file which is done through ansible
+# using a regular expression that will look for the node and 
+# for the node id value, otherwise will set 'zero' as value for the node id
+# our django project knows now which node it is and can use it directly.
+- name: Set NODE_ID in .env file
+  ansible.builtin.lineinfile:
+    path: /opt/app/.env
+    regexp: '^NODE_ID='
+    line: 'NODE_ID={{ node_id | default(0, true) }}'
+  become: yes
+
+
+# we can debug this 'clone' repo' result to see if it fails
+- name: Debug git clone result
+  ansible.builtin.debug:
+    var: git_clone_result
+  when: git_clone_result is failed
+
+
+# make sure that our virtual env is there
+- name: Ensure /opt/env directory exists
+  ansible.builtin.file:
+    path: "/opt/env"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  become: yes
+
+
+# after we checked the virtual env is there we start to install the 
+# project reuirements
+- name: Install project requirements
+  pip:
+    requirements: "/opt/app/requirements.txt"
+    virtualenv: "/opt/env"
+    virtualenv_command: python3 -m venv
+  become: yes
+
+
+# we then run the django migration only on the main host machine
+# with this migrations the .env file need to be correct 
+# otherwise the migrations might not work for all the machines.
+
+- name: Run Django migrations
+  ansible.builtin.command:
+    cmd: /opt/env/bin/python manage.py migrate
+    chdir: /opt/app/src
+  become: yes
+  become_user: "{{ ansible_user }}"
+  # if this is not working , comment this out and then migrate in every single host 
+  # machine one by one.
+  # the 'when' command says: the inventory host name for this current iteration 
+  # needs to be in a group called ['main']. if it's not ,
+  # then skip this particular iteration
+  when: inventory_hostname in groups['main']
+
+
+# run django 'collectstatic' for adding the static files 
+# into the project also.
+- name: Run Django collectstatic
+  ansible.builtin.command:
+    cmd: /opt/env/bin/python manage.py collectstatic --no-input
+    chdir: /opt/app/src
+  become: yes
+  become_user: "{{ ansible_user }}"
+  when: inventory_hostname in groups['main']

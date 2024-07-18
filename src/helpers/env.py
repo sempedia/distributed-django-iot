@@ -12,10 +12,11 @@ BASE_DIR_ENV = BASE_DIR / '.env'
 REPO_DIR = BASE_DIR.parent
 
 # repo directory .env path
-REPO_DIR_ENV = BASE_DIR / '.env'
+REPO_DIR_ENV = REPO_DIR / '.env'
 
 # repo web directory .env.web path
-REPO_DIR_WEB_ENV = BASE_DIR / '.env.web'
+REPO_DIR_WEB_ENV = REPO_DIR / '.env.web'
+
 
 @lru_cache
 def get_config():

@@ -1,0 +1,3 @@
+---
+# vars file for clone_repo
+github_repo: https://github.com/sempedia/distributed-django-iot.git

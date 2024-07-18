@@ -1,0 +1,115 @@
+---
+# tasks file for services_config
+
+# create the gunicorn service on main host 
+- name: Create Gunicorn systemd service
+  ansible.builtin.template:
+    src: gunicorn.service.j2
+    dest: /etc/systemd/system/gunicorn.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when: inventory_hostname in groups['main']
+
+
+# create the celery beat service on main host
+- name: Create Celery Beat systemd service
+  ansible.builtin.template:
+    src: celery-beat.service.j2
+    dest: /etc/systemd/system/celery-beat.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when: inventory_hostname in groups['main']
+
+
+# create the celery worker systemd service on all the hosts we have
+- name: Create Celery Worker systemd service
+  ansible.builtin.template:
+    src: celery-worker.service.j2
+    dest: /etc/systemd/system/celery-worker.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  # when: inventory_hostname in groups['nodes']
+
+
+# we reload the systemd after we brought all those services in.
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+  become: yes
+
+
+# enable and then start gunicorn sever 
+- name: Enable and start Gunicorn
+  ansible.builtin.systemd:
+    name: gunicorn
+    enabled: yes
+    state: started
+  become: yes
+  when: inventory_hostname in groups['main']
+
+
+# Install Nginx to serve our django project 
+# to the different hosts/nodes we have configured.
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+  become: yes
+  when: inventory_hostname in groups['main']
+
+
+# Configure Nginx
+- name: Configure Nginx
+  template:
+    src: nginx_django.conf.j2
+    dest: /etc/nginx/sites-available/django
+  become: yes
+  when: inventory_hostname in groups['main']
+  notify: Restart Nginx
+
+
+# Enable nginx site on the main host also
+- name: Enable Nginx site
+  file:
+    src: /etc/nginx/sites-available/django
+    dest: /etc/nginx/sites-enabled/default
+    state: link
+  become: yes
+  when: inventory_hostname in groups['main']
+  notify: Restart Nginx
+
+
+# Enable and start nginx on the main host also.
+- name: Enable and start Nginx
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: yes
+    state: started
+  become: yes
+  when: inventory_hostname in groups['main']
+
+
+# Enable and start celery beat server on the main host also.
+- name: Enable and start Celery Beat
+  ansible.builtin.systemd:
+    name: celery-beat
+    enabled: yes
+    state: started
+  become: yes
+  when: inventory_hostname in groups['main']
+
+
+# Enable and start celery worker
+- name: Enable and start Celery Worker
+  ansible.builtin.systemd:
+    name: celery-worker
+    enabled: yes
+    state: started
+  become: yes

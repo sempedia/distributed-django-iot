@@ -1,0 +1,123 @@
+# we declare 'services' section
+services:
+  # we add a service for 'redis' - the database for celery
+  redis-db:
+    networks:
+      - core
+    image: redis:latest
+    # declare the ports for 'redis' database. 6379 is the default for redis
+    ports:
+      - "6555:6379"
+    # declare the volumes for redis data. The data will go to url:
+    # redis_data:/data
+    volumes:
+      - redis_data:/data
+  # we name our service 'timescaledb' as we need to use timescaledb container/image
+  timescaledb:
+    networks:
+      - core
+    # we declare the default image for timescaledb from 'hub.docker.com'. pg16 is comming from 
+    # postgress16 version - the latest version
+    image: timescale/timescaledb:latest-pg16
+    # declare some env variables for Postgress db
+    # environment: 
+    #   POSTGRES_USER: your_username
+    #   POSTGRES_PASSWORD: your_password
+    #   POSTGRES_DB: your_database
+
+    # use instead an .env.database file to not have those credentials hardcoded
+    # into docker compose file
+    env_file:
+      - .env.database
+    # declare the default ports for Postgress
+    ports:
+        - "5555:5432" # localhost:5432 - your local machine have access to this timescaledb container port
+        # BUt this now block the default port for your entire system and we do '5555' instead of 5432
+        # to be used as my postgress port 
+    # we declare volumes for timescale data into the container which will map to this
+    # location: /var/lib/postgresql/data
+    volumes: 
+        - timescale_data:/var/lib/postgresql/data
+    # we add a policy that says 'restart' all service unless is not stopped
+    restart: unless-stopped
+
+  # declare another service for our django app to be built in the container
+  # use the anchor '&' to make the web service reference available 
+  # in other services or definitions
+  django-base: &django-base
+    networks:
+      - core
+    # declare a build commnad to can build our django project for web 
+    build: 
+      # declare the context of . so the app be built in our local directory:
+      context: .
+      # declare the Dockerfile that we will create for our project
+      dockerfile: Dockerfile
+    # declare an environment for our env variables
+    env_file: 
+      - .env.web-container
+    # declare the ports for django app
+    # create a 'dvelop' block to can automatically trigger the chnages made in development env
+    # and add them inside the docker container.
+    develop:
+      # add the watch configuration so we can watch the chnages from development env
+      watch:
+        # declare the action of syncing the code and restarting the server after the sync is made
+        - action: sync+restart
+        # declare the path we want to sync from
+          path: ./src
+        # declare the target were we want to send the code synced from development ./src folder
+          target: ./code
+          # declare the action of syncing the code and restarting the server after the sync is made
+        - action: sync+restart
+        # declare the path we want to sync from
+          path: ./requirements.txt
+        # declare the target were we want to send the code synced from development ./src folder
+          target: ./tmp/requirements.txt
+  
+  # declare our 'node_1' service and reference the 'web' service anchor
+  # using the alias we used: <<:*django-base
+  # 'node_1' service is now the same exact thing as 'web' service is 
+  # but will chnage a few things about it.
+  # declare alo the other nodes and the beat server itself
+  
+  web:
+    <<: *django-base
+    environment:
+      - NODE_ID=0
+      - PORT=8088
+    ports:
+      - '8088:8088'
+  beat:
+    <<: *django-base
+    environment:
+      - NODE_ID=0
+    command: |
+      celery -A core beat
+  node_1:
+    <<: *django-base
+    environment:
+      - NODE_ID=1
+    command: |
+      celery -A core worker Q node-1 
+  node_2:
+    <<: *django-base
+    environment:
+      - NODE_ID=2
+    command: |
+      celery -A core worker Q node-2
+  node_3:
+    <<: *django-base
+    environment:
+      - NODE_ID=3
+    command: |
+      celery -A core worker Q node-3
+    
+
+# I say here 'volumes' is equal to that volume called 'timescale-data:'
+volumes:
+  timescale_data:
+  redis_data:
+# declare networks:
+networks:
+  core:

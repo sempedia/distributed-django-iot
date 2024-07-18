@@ -25,9 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('DJANGO_SECRET_KEY', cast=str)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DJANGO_DEBUG', cast=bool, default=True)
 
-ALLOWED_HOSTS = []
+# we add * to allow all hosts to connect and when 
+# we run our projcet in docker container it works
+
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -39,6 +42,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_celery_beat',
+    'django_celery_results',
+    'sensors'
 ]
 
 MIDDLEWARE = [
@@ -83,6 +89,19 @@ DATABASES = {
 }
 
 
+# configure Postgress database using DATABASE_URL env variable from .env file
+DATABASE_URL = config('DATABASE_URL', cast=str, default='')
+
+if DATABASE_URL != '':
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            engine='timescale.db.backends.postgresql',
+            conn_max_age=600
+            )
+    }
+
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
 
@@ -125,3 +144,29 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Default configuration for Celery
+
+# celery broker url is the env variable we set up into .env.web file
+# the default url for celery will be redis://localhost:6379
+CELERY_BROKER_URL = config('CELERY_BROKER_REDIS_URL', 
+                           default='redis://localhost:6379'
+                           )
+
+# celery result backend url will be django-db. meaning the 
+# celery results will be stored in django database backend which 
+# will be our timescaledb infact 
+CELERY_RESULT_BACKEND = 'django-db'
+
+# beat scheduller from the django_celery_beat package
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
+
+# redis connection retry
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# redis backend use SSL
+CELERY_REDIS_BACKEND_USE_SSL = False
+
+# celery broker use SSL connection 
+CELERY_BROKER_USE_SSL = False
