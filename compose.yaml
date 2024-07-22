@@ -99,19 +99,26 @@ services:
     environment:
       - NODE_ID=1
     command: |
-      celery -A core worker Q node-1 
+      celery -A core worker -Q node-1 
   node_2:
     <<: *django-base
     environment:
       - NODE_ID=2
     command: |
-      celery -A core worker Q node-2
+      celery -A core worker -Q node-2
   node_3:
     <<: *django-base
     environment:
       - NODE_ID=3
     command: |
-      celery -A core worker Q node-3
+      celery -A core worker -Q node-3
+
+  node_4:
+    <<: *django-base
+    environment:
+      - NODE_ID=4
+    command: |
+      celery -A core worker -Q node-4
     
 
 # I say here 'volumes' is equal to that volume called 'timescale-data:'

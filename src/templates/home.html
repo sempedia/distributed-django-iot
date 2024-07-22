@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello world</title>
+</head>
+<body>
+    <!-- Chartjs.org chart copied here-->
+     <!--Canvas added so we have a chart with it's own container-->
+    <div>
+        <canvas id="myChart"></canvas>
+      </div>
+      
+      <!--Include Chart.js script from a CDN-->
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      
+
+      <!--script that acquires the myChart canvas element and instantiates 
+      new Chart with desired configuration: bar chart type, labels, data points, 
+      and options.
+      -->
+      <script>
+        const ctx = document.getElementById('myChart');
+        fetch('/api/temps')
+        .then(response=>response.json())
+        .then(ourData=>{console.log(ourData)
+        // we will map our data so we only have our time_group added here as 
+        // subdata label
+        const labels = ourData.map(subData=> subData.time_group) 
+        // we will map our data so we only have our avg_time added here as 
+        // subdata label
+        const datasetData = ourData.map(subData=> subData.avg_temp) 
+        
+        // we add the chart code into the fetch call here so the chart 
+        // be created once the fetch call is initialized.
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Avg Temperature',
+              data: datasetData,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+        })
+      
+        
+      </script>
+</body>
+</html>

@@ -2,10 +2,10 @@
 - name: Connect Pi Hosts
   hosts: all
   become: yes
+  roles:
+    - connect_hosts
+
   # call the connect_hosts role : roles/connect_hosts/tasks/main.yaml
   # and needs to be runned 
   # only when you add new hosts or new pies to your 
   # entire ecosystem/cluster
-
-  roles:
-    - connect_hosts

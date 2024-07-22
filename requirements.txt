@@ -10,4 +10,4 @@ django-timescaledb # help django to work with timescaleDb and time series data
 gunicorn # for running the django project in production
 kombu # for running celery in production
 whitenoise # for loading static files
-
+django-ninja # for creating a query with a REST API 
