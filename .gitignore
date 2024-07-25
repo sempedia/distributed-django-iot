@@ -1,6 +1,9 @@
 .env.web
 .DS_Store
 .env.prod
+.env.database
+.env.web-container
+.env.web-sample
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
